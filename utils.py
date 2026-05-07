@@ -19,24 +19,18 @@ warnings.filterwarnings("ignore")
 
 
 class Resize(object):
-    """Resize image and/or masks."""
 
     def __init__(self, image_resize, mask_resize):
         self.image_resize = image_resize
         self.mask_resize = mask_resize
 
     def __call__(self, sample):
+
         image, mask = sample["image"], sample["mask"]
-        if len(image.shape) == 3:
-            image = image.transpose(1, 2, 0)
-        if len(mask.shape) == 3:
-            mask = mask.transpose(1, 2, 0)
-        mask = cv2.resize(mask, self.mask_resize, cv2.INTER_AREA)
-        image = cv2.resize(image, self.image_resize, cv2.INTER_AREA)
-        if len(image.shape) == 3:
-            image = image.transpose(2, 0, 1)
-        if len(mask.shape) == 3:
-            mask = mask.transpose(2, 0, 1)
+
+        image = cv2.resize(image, self.image_resize, interpolation=cv2.INTER_AREA)
+
+        mask = cv2.resize(mask, self.mask_resize, interpolation=cv2.INTER_NEAREST)
 
         return {"image": image, "mask": mask}
 
