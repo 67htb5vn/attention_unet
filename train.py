@@ -25,8 +25,8 @@ def train_and_test(
 
     for epoch in range(1, num_epochs + 1):
 
-        print(f"Epoch {epoch}/{num_epochs}")
-        print("-" * 10)
+        print(f"\nEpoch {epoch}/{num_epochs}")
+        print("-" * 40)
 
         epoch_metrics = {
             "train_loss": 0.0,
@@ -44,7 +44,12 @@ def train_and_test(
 
             running_loss = 0.0
 
-            for sample in dataloaders[phase]:
+            # 🔥 tqdm progress bar
+            pbar = tqdm(
+                dataloaders[phase], desc=f"{phase}", total=len(dataloaders[phase])
+            )
+
+            for sample in pbar:
 
                 inputs = sample["image"].to(device)
                 masks = sample["mask"].to(device)
@@ -54,7 +59,6 @@ def train_and_test(
                 with torch.set_grad_enabled(phase == "training"):
 
                     outputs = model(inputs)
-
                     loss = criterion(outputs, masks)
 
                     if phase == "training":
@@ -64,13 +68,16 @@ def train_and_test(
                 # accumulate loss
                 running_loss += loss.item() * inputs.size(0)
 
-                # dice (always evaluate mode)
+                # dice (no grad)
                 dice = dice_coeff(outputs.detach(), masks.detach())
 
                 if phase == "training":
                     epoch_metrics["train_dice"].append(dice)
                 else:
                     epoch_metrics["test_dice"].append(dice)
+
+                # 🔥 show live metrics in tqdm
+                pbar.set_postfix(loss=loss.item(), dice=dice)
 
             epoch_loss = running_loss / len(dataloaders[phase].dataset)
 
@@ -81,17 +88,21 @@ def train_and_test(
                 epoch_metrics["test_loss"] = epoch_loss
                 test_epoch_losses.append(epoch_loss)
 
-        # summary epoch
+        # ================= SUMMARY =================
         train_dice = np.mean(epoch_metrics["train_dice"])
         test_dice = np.mean(epoch_metrics["test_dice"])
 
-        print(f"Train Loss: {epoch_metrics['train_loss']:.4f} | Dice: {train_dice:.4f}")
+        print(
+            f"\nTrain Loss: {epoch_metrics['train_loss']:.4f} | Dice: {train_dice:.4f}"
+        )
         print(f"Test  Loss: {epoch_metrics['test_loss']:.4f} | Dice: {test_dice:.4f}")
 
-        # save best
+        # save best model score
         if test_dice > best_dice:
             best_dice = test_dice
 
-    print(f"\nBest Dice: {best_dice:.4f}")
+    print("\n=================================")
+    print(f"Best Dice: {best_dice:.4f}")
+    print("=================================")
 
     return model, train_epoch_losses, test_epoch_losses
