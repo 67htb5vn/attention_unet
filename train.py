@@ -13,66 +13,85 @@ from tqdm import tqdm
 def train_and_test(
     model, dataloaders, optimizer, criterion, num_epochs=3, show_images=False
 ):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    since = time.time()
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model.to(device)
 
-    train_epoch_losses, test_epoch_losses = [], []
+    train_epoch_losses = []
+    test_epoch_losses = []
+
     best_dice = 0.0
 
     for epoch in range(1, num_epochs + 1):
-        print(f"Epoch {epoch}/{num_epochs}\n" + "-" * 10)
+
+        print(f"Epoch {epoch}/{num_epochs}")
+        print("-" * 10)
+
+        epoch_metrics = {
+            "train_loss": 0.0,
+            "test_loss": 0.0,
+            "train_dice": [],
+            "test_dice": [],
+        }
 
         for phase in ["training", "test"]:
+
             if phase == "training":
                 model.train()
             else:
                 model.eval()
 
             running_loss = 0.0
-            running_dice = 0.0
 
-            # SỬA LỖI: Dùng pbar trực tiếp trong vòng lặp for
-            pbar = tqdm(
-                dataloaders[phase], desc=f"{phase.capitalize()} Phase", unit="batch"
-            )
+            for sample in dataloaders[phase]:
 
-            for sample in pbar:
                 inputs = sample["image"].to(device)
                 masks = sample["mask"].to(device)
 
                 optimizer.zero_grad()
 
                 with torch.set_grad_enabled(phase == "training"):
+
                     outputs = model(inputs)
+
                     loss = criterion(outputs, masks)
 
                     if phase == "training":
                         loss.backward()
                         optimizer.step()
 
-                # Tính toán trực tiếp trên Tensor (gọi hàm dice_coeff mới)
-                batch_dice = dice_coeff(outputs, masks)
-
-                # Cập nhật số liệu
+                # accumulate loss
                 running_loss += loss.item() * inputs.size(0)
-                running_dice += batch_dice * inputs.size(0)
 
-                # Cập nhật thanh tiến trình realtime
-                pbar.set_postfix(loss=f"{loss.item():.4f}", dice=f"{batch_dice:.4f}")
+                # dice (always evaluate mode)
+                dice = dice_coeff(outputs.detach(), masks.detach())
+
+                if phase == "training":
+                    epoch_metrics["train_dice"].append(dice)
+                else:
+                    epoch_metrics["test_dice"].append(dice)
 
             epoch_loss = running_loss / len(dataloaders[phase].dataset)
-            epoch_dice = running_dice / len(dataloaders[phase].dataset)
 
             if phase == "training":
+                epoch_metrics["train_loss"] = epoch_loss
                 train_epoch_losses.append(epoch_loss)
             else:
+                epoch_metrics["test_loss"] = epoch_loss
                 test_epoch_losses.append(epoch_loss)
-                if epoch_dice > best_dice:
-                    best_dice = epoch_dice
 
-            print(
-                f"{phase.capitalize()} - Loss: {epoch_loss:.4f} | Dice: {epoch_dice:.4f}"
-            )
+        # summary epoch
+        train_dice = np.mean(epoch_metrics["train_dice"])
+        test_dice = np.mean(epoch_metrics["test_dice"])
 
-    print(f"\nBest Test Dice Coefficient: {best_dice:.4f}")
+        print(f"Train Loss: {epoch_metrics['train_loss']:.4f} | Dice: {train_dice:.4f}")
+        print(f"Test  Loss: {epoch_metrics['test_loss']:.4f} | Dice: {test_dice:.4f}")
+
+        # save best
+        if test_dice > best_dice:
+            best_dice = test_dice
+
+    print(f"\nBest Dice: {best_dice:.4f}")
+
     return model, train_epoch_losses, test_epoch_losses

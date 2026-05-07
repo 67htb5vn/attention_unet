@@ -9,21 +9,22 @@ def normalize(x):
     return x / 255.0
 
 
-def dice_coeff(prediction, target):
-    # Nếu output là logits (từ FocalLoss), cần qua Sigmoid
-    if not torch.all((prediction >= 0) & (prediction <= 1)):
-        prediction = torch.sigmoid(prediction)
+def dice_coeff(prediction, target, threshold=0.5):
+    """Dice coefficient (torch version - correct & stable)"""
 
-    # Chuyển về nhị phân 0/1
-    prediction = (prediction > 0.5).float()
+    prediction = torch.sigmoid(prediction)
+
+    prediction = (prediction > threshold).float()
     target = target.float()
 
     smooth = 1e-6
-    intersect = torch.sum(prediction * target)
-    union = torch.sum(prediction) + torch.sum(target)
 
-    dice = (2.0 * intersect + smooth) / (union + smooth)
-    return dice.item()  # Trả về số thực đơn thuần
+    intersection = (prediction * target).sum()
+    union = prediction.sum() + target.sum()
+
+    dice = (2.0 * intersection + smooth) / (union + smooth)
+
+    return dice.item()
 
 
 class FocalLoss(nn.modules.loss._WeightedLoss):

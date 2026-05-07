@@ -133,7 +133,7 @@ def get_data_loaders(
         ),
         "test": transforms.Compose(
             [
-                Resize((592, 576), (592, 576)),
+                Resize((256, 256), (256, 256)),
                 HorizontalFlip(),
                 ApplyClaheColor(),
                 Denoise(),
