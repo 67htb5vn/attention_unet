@@ -123,7 +123,7 @@ def get_data_loaders(
     data_transforms = {
         "training": transforms.Compose(
             [
-                Resize((320, 320), (320, 320)),
+                Resize((256, 256), (256, 256)),
                 HorizontalFlip(),
                 ApplyClaheColor(),
                 Denoise(),
