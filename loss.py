@@ -10,33 +10,20 @@ def normalize(x):
 
 
 def dice_coeff(prediction, target):
-    """
-    Tính toán Dice Coefficient trực tiếp trên Tensor (GPU hoặc CPU).
-    prediction: Tensor đầu ra từ model (thường là logits).
-    target: Tensor mask thực tế (Ground Truth).
-    """
-    # 1. Chuyển đổi Prediction thành xác suất 0-1 (Sigmoid)
-    # và đưa về nhị phân (0 hoặc 1)
-    # Lưu ý: Vì bạn dùng FocalLoss với Logits,
-    # nên đầu ra model thường chưa qua Sigmoid.
+    # Nếu output là logits (từ FocalLoss), cần qua Sigmoid
     if not torch.all((prediction >= 0) & (prediction <= 1)):
         prediction = torch.sigmoid(prediction)
 
-    # Ngưỡng 0.5 để tạo mask nhị phân
-    mask = (prediction >= 0.5).float()
+    # Chuyển về nhị phân 0/1
+    prediction = (prediction > 0.5).float()
     target = target.float()
 
-    # 2. Tính toán Intersection và Union trên toàn bộ Batch
-    # Sử dụng sum() của torch thay vì np.sum()
-    inter = torch.sum(mask * target)
-    union = torch.sum(mask) + torch.sum(target)
+    smooth = 1e-6
+    intersect = torch.sum(prediction * target)
+    union = torch.sum(prediction) + torch.sum(target)
 
-    epsilon = 1e-6
-    # 3. Tính Dice
-    result = (2.0 * inter) / (union + epsilon)
-
-    # Trả về giá trị số (Python scalar) để log
-    return result.item()
+    dice = (2.0 * intersect + smooth) / (union + smooth)
+    return dice.item()  # Trả về số thực đơn thuần
 
 
 class FocalLoss(nn.modules.loss._WeightedLoss):
