@@ -9,16 +9,18 @@ import cv2
 class SegmentationDataset(Dataset):
     """Segmentation Dataset"""
 
-    def __init__(self,
-                 root_dir,
-                 image_folder,
-                 mask_folder,
-                 transform=None,
-                 image_colormode='rgb',
-                 mask_colormode='grayscale',
-                 seed=42,
-                 fraction=0.7,
-                 subset=None):
+    def __init__(
+        self,
+        root_dir,
+        image_folder,
+        mask_folder,
+        transform=None,
+        image_colormode="rgb",
+        mask_colormode="grayscale",
+        seed=42,
+        fraction=0.7,
+        subset=None,
+    ):
         """
         Args:
             image_folder (string) = 'Images' : Name of the folder which contains the Images.
@@ -30,9 +32,9 @@ class SegmentationDataset(Dataset):
             image_colormode: 'rgb' or 'grayscale'
             mask_colormode: 'rgb' or 'grayscale'
         """
-        self.color_dict = {'rgb': 1, 'grayscale': 0}
-        assert (image_colormode in ['rgb', 'grayscale'])
-        assert (mask_colormode in ['rgb', 'grayscale'])
+        self.color_dict = {"rgb": 1, "grayscale": 0}
+        assert image_colormode in ["rgb", "grayscale"]
+        assert mask_colormode in ["rgb", "grayscale"]
 
         self.imagecolorflag = self.color_dict[image_colormode]
         self.maskcolorflag = self.color_dict[mask_colormode]
@@ -41,32 +43,35 @@ class SegmentationDataset(Dataset):
 
         if not fraction:
             self.image_names = sorted(
-                glob.glob(os.path.join(self.root_dir, image_folder, '*')))
+                glob.glob(os.path.join(self.root_dir, image_folder, "*"))
+            )
             self.mask_names = sorted(
-                glob.glob(os.path.join(self.root_dir, mask_folder, '*')))
+                glob.glob(os.path.join(self.root_dir, mask_folder, "*"))
+            )
         else:
-            assert (subset in ['training', 'test'])
+            assert subset in ["training", "test"]
             self.fraction = fraction
             self.image_list = np.array(
-                sorted(glob.glob(os.path.join(self.root_dir, image_folder, '*'))))
+                sorted(glob.glob(os.path.join(self.root_dir, image_folder, "*")))
+            )
             self.mask_list = np.array(
-                sorted(glob.glob(os.path.join(self.root_dir, mask_folder, '*'))))
+                sorted(glob.glob(os.path.join(self.root_dir, mask_folder, "*")))
+            )
             if seed:
                 np.random.seed(seed)
                 indices = np.arange(len(self.image_list))
                 np.random.shuffle(indices)
                 self.image_list = self.image_list[indices]
                 self.mask_list = self.mask_list[indices]
-            if subset == 'training':
-                self.image_names = self.image_list[:int(
-                    np.ceil(len(self.image_list) * (1 - self.fraction)))]
-                self.mask_names = self.mask_list[:int(
-                    np.ceil(len(self.mask_list) * (1 - self.fraction)))]
-            else:
-                self.image_names = self.image_list[int(
-                    np.ceil(len(self.image_list) * (1 - self.fraction))):]
-                self.mask_names = self.mask_list[int(
-                    np.ceil(len(self.mask_list) * (1 - self.fraction))):]
+                split_idx = int(np.ceil(len(self.image_list) * self.fraction))
+
+                if subset == "training":
+                    self.image_names = self.image_list[:split_idx]
+                    self.mask_names = self.mask_list[:split_idx]
+
+                else:
+                    self.image_names = self.image_list[split_idx:]
+                    self.mask_names = self.mask_list[split_idx:]
 
     def __len__(self):
         return len(self.image_names)
@@ -76,25 +81,31 @@ class SegmentationDataset(Dataset):
         img_name = self.image_names[idx]
         if self.imagecolorflag:
             image = cv2.imread(img_name)
-            image = cv2.copyMakeBorder(image, top=4, bottom=4, left=6, right=5,
-                                       borderType=cv2.BORDER_CONSTANT)
+            image = cv2.copyMakeBorder(
+                image, top=4, bottom=4, left=6, right=5, borderType=cv2.BORDER_CONSTANT
+            )
 
         else:
             image = cv2.imread(img_name)
-            image = cv2.copyMakeBorder(image, top=4, bottom=4, left=6, right=5,
-                                       borderType=cv2.BORDER_CONSTANT)
+            image = cv2.copyMakeBorder(
+                image, top=4, bottom=4, left=6, right=5, borderType=cv2.BORDER_CONSTANT
+            )
 
         msk_name = self.mask_names[idx]
         if self.maskcolorflag:
-            mask = np.array(Image.open(msk_name)).transpose(2, 0, 1)
-            mask = cv2.copyMakeBorder(mask, top=4, bottom=4, left=6, right=5,
-                                      borderType=cv2.BORDER_CONSTANT)
+            mask = np.array(Image.open(msk_name))
+            if len(mask.shape) == 3:
+                mask = mask[..., 0]
+            mask = cv2.copyMakeBorder(
+                mask, top=4, bottom=4, left=6, right=5, borderType=cv2.BORDER_CONSTANT
+            )
         else:
             mask = np.array(Image.open(msk_name))
-            mask = cv2.copyMakeBorder(mask, top=4, bottom=4, left=6, right=5,
-                                      borderType=cv2.BORDER_CONSTANT)
+            mask = cv2.copyMakeBorder(
+                mask, top=4, bottom=4, left=6, right=5, borderType=cv2.BORDER_CONSTANT
+            )
 
-        sample = {'image': image, 'mask': mask}
+        sample = {"image": image, "mask": mask}
 
         if self.transform:
             sample = self.transform(sample)
