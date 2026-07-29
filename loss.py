@@ -27,6 +27,33 @@ def dice_coeff(prediction, target, threshold=0.5):
     return dice.item()
 
 
+class BCEDiceLoss(nn.Module):
+    """Class-balanced BCE plus differentiable Dice loss for binary masks."""
+
+    def __init__(self, pos_weight=20.0, bce_weight=0.5, smooth=1.0):
+        super().__init__()
+        self.register_buffer("pos_weight", torch.tensor([pos_weight]))
+        self.bce_weight = bce_weight
+        self.smooth = smooth
+
+    def forward(self, logits, target):
+        target = target.float()
+        bce = F.binary_cross_entropy_with_logits(
+            logits, target, pos_weight=self.pos_weight
+        )
+
+        probabilities = torch.sigmoid(logits)
+        probabilities = probabilities.flatten(1)
+        target = target.flatten(1)
+        intersection = (probabilities * target).sum(dim=1)
+        denominator = probabilities.sum(dim=1) + target.sum(dim=1)
+        dice_loss = 1.0 - (
+            (2.0 * intersection + self.smooth) / (denominator + self.smooth)
+        )
+
+        return self.bce_weight * bce + (1.0 - self.bce_weight) * dice_loss.mean()
+
+
 class FocalLoss(nn.modules.loss._WeightedLoss):
 
     def __init__(

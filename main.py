@@ -2,7 +2,7 @@ from utils import *
 from model import AttentionUNet
 from torchvision.utils import make_grid
 from train import train_and_test
-from loss import dice_coeff, FocalLoss
+from loss import dice_coeff, BCEDiceLoss
 import torch.nn as nn
 
 
@@ -15,7 +15,8 @@ dataloaders = get_data_loaders(data_dir, batch_size=batch_size)
 def train():
     model = AttentionUNet()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-5)
-    criterion = FocalLoss(gamma=2)
+    # Foreground is sparse; this prevents the all-background solution.
+    criterion = BCEDiceLoss(pos_weight=20.0, bce_weight=0.5)
 
     trained_model = train_and_test(model, dataloaders, optimizer, criterion, num_epochs=epochs)
 
