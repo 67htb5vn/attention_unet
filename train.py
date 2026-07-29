@@ -11,7 +11,14 @@ from tqdm import tqdm
 
 
 def train_and_test(
-    model, dataloaders, optimizer, criterion, num_epochs=3, show_images=False
+    model,
+    dataloaders,
+    optimizer,
+    criterion,
+    num_epochs=3,
+    show_images=False,
+    early_stopping_patience=15,
+    min_delta=1e-4,
 ):
 
     since = time.time()
@@ -21,7 +28,9 @@ def train_and_test(
     train_epoch_losses = []
     test_epoch_losses = []
 
-    best_dice = 0.0
+    best_dice = -float("inf")
+    best_model_weights = copy.deepcopy(model.state_dict())
+    epochs_without_improvement = 0
 
     for epoch in range(1, num_epochs + 1):
 
@@ -97,12 +106,29 @@ def train_and_test(
         )
         print(f"Test  Loss: {epoch_metrics['test_loss']:.4f} | Dice: {test_dice:.4f}")
 
-        # save best model score
-        if test_dice > best_dice:
+        # Keep the best validation model and stop when Dice plateaus.
+        if test_dice > best_dice + min_delta:
             best_dice = test_dice
+            best_model_weights = copy.deepcopy(model.state_dict())
+            epochs_without_improvement = 0
+        else:
+            epochs_without_improvement += 1
+            print(
+                "Validation Dice did not improve "
+                f"({epochs_without_improvement}/{early_stopping_patience})"
+            )
+
+            if epochs_without_improvement >= early_stopping_patience:
+                print(
+                    f"Early stopping at epoch {epoch}: validation Dice did not "
+                    f"improve by at least {min_delta} for "
+                    f"{early_stopping_patience} consecutive epochs."
+                )
+                break
 
     print("\n=================================")
     print(f"Best Dice: {best_dice:.4f}")
     print("=================================")
 
+    model.load_state_dict(best_model_weights)
     return model, train_epoch_losses, test_epoch_losses

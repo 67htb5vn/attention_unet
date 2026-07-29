@@ -3,6 +3,7 @@ from model import AttentionUNet
 from torchvision.utils import make_grid
 from train import train_and_test
 from loss import dice_coeff, BCEDiceLoss
+import torch
 import torch.nn as nn
 
 
@@ -12,7 +13,31 @@ epochs = 100
 dataloaders = get_data_loaders(data_dir, batch_size=batch_size)
 
 
+def print_mask_statistics(dataloader):
+    """Print a quick label sanity check before training."""
+    batch = next(iter(dataloader))
+    masks = batch["mask"].float()
+    foreground_ratio = masks.mean().item()
+    foreground_pixels = masks.sum().item()
+
+    print("\nMask diagnostic")
+    print("-" * 40)
+    print(f"Unique mask values: {torch.unique(masks).tolist()}")
+    print(f"Foreground ratio:    {foreground_ratio:.6f}")
+    print(f"Foreground pixels:   {foreground_pixels:.0f}")
+
+    if 0.0 < foreground_ratio < 1.0:
+        suggested_weight = (1.0 - foreground_ratio) / foreground_ratio
+        print(f"Suggested pos_weight: {suggested_weight:.1f}")
+    elif foreground_ratio == 0.0:
+        print("WARNING: This batch has no foreground pixels.")
+    else:
+        print("WARNING: Mask values should be binary 0/1.")
+    print("-" * 40)
+
+
 def train():
+    print_mask_statistics(dataloaders["training"])
     model = AttentionUNet()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-5)
     # Foreground is sparse; this prevents the all-background solution.
