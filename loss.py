@@ -39,7 +39,7 @@ class BCEDiceLoss(nn.Module):
     def forward(self, logits, target):
         target = target.float()
         bce = F.binary_cross_entropy_with_logits(
-            logits, target, pos_weight=self.pos_weight
+            logits, target, pos_weight=self.pos_weight.to(logits.device)
         )
 
         probabilities = torch.sigmoid(logits)

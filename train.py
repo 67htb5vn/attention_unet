@@ -24,6 +24,7 @@ def train_and_test(
     since = time.time()
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model.to(device)
+    criterion.to(device)
 
     train_epoch_losses = []
     test_epoch_losses = []
