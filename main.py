@@ -73,10 +73,10 @@ def plot_prediction(model, dataloaders):
     plt.show()
 
 
-'''trained_model = train()
-plot_prediction(trained_model, dataloaders)'''
-
-plot_batch_from_dataloader(dataloaders, 4)
+if __name__ == "__main__":
+    trained_model, train_epoch_losses, test_epoch_losses = train()
+    torch.save(trained_model.state_dict(), "attention_unet.pth")
+    print("Da luu model tot nhat: attention_unet.pth")
 
 '''image = cv2.imread('data/training/images/21_training.tif')
 image = cv2.copyMakeBorder(image, top=4, bottom=4, left=6, right=5,
