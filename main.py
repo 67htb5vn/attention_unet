@@ -15,7 +15,7 @@ dataloaders = get_data_loaders(data_dir, batch_size=batch_size)
 def train():
     model = AttentionUNet()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-5)
-    criterion = FocalLoss()
+    criterion = FocalLoss(gamma=2)
 
     trained_model = train_and_test(model, dataloaders, optimizer, criterion, num_epochs=epochs)
 

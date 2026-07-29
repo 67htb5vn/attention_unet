@@ -50,13 +50,18 @@ class ToTensor(object):
 
 
 class Normalize(object):
-    """Normalize image"""
+    """Normalize the image and convert every non-zero mask value to foreground.
+
+    Masks may be stored either as 0/1 or 0/255.  Dividing a 0/1 mask by 255
+    makes its foreground almost zero, which causes BCE to learn an all
+    background prediction.  Keep masks strictly binary instead.
+    """
 
     def __call__(self, sample):
         image, mask = sample["image"], sample["mask"]
         return {
-            "image": image.type(torch.FloatTensor) / 255,
-            "mask": mask.type(torch.FloatTensor) / 255,
+            "image": image.float() / 255.0,
+            "mask": (mask.float() > 0).float(),
         }
 
 
@@ -134,7 +139,6 @@ def get_data_loaders(
         "test": transforms.Compose(
             [
                 Resize((256, 256), (256, 256)),
-                HorizontalFlip(),
                 ApplyClaheColor(),
                 Denoise(),
                 ToTensor(),

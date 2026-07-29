@@ -44,16 +44,15 @@ class FocalLoss(nn.modules.loss._WeightedLoss):
         self.balance_param = balance_param
 
     def forward(self, input, target):
-        # inputs and targets are assumed to be BatchxClasses
+        """Pixel-wise binary focal loss for logits and binary masks."""
         assert len(input.shape) == len(target.shape)
         assert input.size(0) == target.size(0)
         assert input.size(1) == target.size(1)
 
-        # compute the negative likelyhood
-        logpt = -F.binary_cross_entropy_with_logits(input, target)
-        pt = torch.exp(logpt)
+        target = target.float()
+        bce = F.binary_cross_entropy_with_logits(input, target, reduction="none")
+        pt = torch.exp(-bce)
 
-        # compute the loss
-        focal_loss = -((1 - pt) ** self.gamma) * logpt
+        focal_loss = ((1 - pt) ** self.gamma) * bce
         balanced_focal_loss = self.balance_param * focal_loss
-        return balanced_focal_loss
+        return balanced_focal_loss.mean()
