@@ -41,7 +41,7 @@ def train():
     model = AttentionUNet()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-5)
     # Foreground is sparse; this prevents the all-background solution.
-    criterion = BCEDiceLoss(pos_weight=20.0, bce_weight=0.5)
+    criterion = BCEDiceLoss(pos_weight=38.5, bce_weight=0.5)
 
     trained_model = train_and_test(model, dataloaders, optimizer, criterion, num_epochs=epochs)
 
